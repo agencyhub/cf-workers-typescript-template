@@ -4,3 +4,4 @@
 /packages/worker/build
 /packages/worker/worker
 /**/package-lock.json
+/wise-fiskl-webhook

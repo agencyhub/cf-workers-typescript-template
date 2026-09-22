@@ -1,0 +1,8 @@
+# Copy to .dev.vars for local wrangler dev. Never commit real values.
+FISKL_API_KEY=fsk_replace_me
+WISE_API_TOKEN=replace_me
+# Optional shared secret (header X-Webhook-Secret). Wise URLs cannot include query params.
+# WEBHOOK_SHARED_SECRET=replace_me
+# Local curl without a Wise RSA signature:
+WISE_REQUIRE_SIGNATURE=false
+WISE_PROFILE_TO_FISKL_ACCOUNT={"8027831":"111111","70855943":"222222"}

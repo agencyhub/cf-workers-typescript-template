@@ -207,7 +207,12 @@ export function mapWiseBalanceUpdateToFiskl(
   };
 
   if (type === "TRANSFER") {
-    body.transferToAccountId = config.conversionCounterpartyAccountId!;
+    if (moneyIn) {
+      body.accountId = config.conversionCounterpartyAccountId!;
+      body.transferToAccountId = accountId;
+    } else {
+      body.transferToAccountId = config.conversionCounterpartyAccountId!;
+    }
     body.transferToAmount = amountMinor;
   } else {
     body.lines = [{ amount: amountMinor, categoryId }];

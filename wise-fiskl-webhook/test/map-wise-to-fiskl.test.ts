@@ -129,8 +129,20 @@ describe("mapWiseBalanceUpdateToFiskl", () => {
     expect(transferred.kind).toBe("post");
     if (transferred.kind !== "post") return;
     expect(transferred.body.type).toBe("TRANSFER");
-    expect(transferred.body.transferToAccountId).toBe(999001);
+    expect(transferred.body.accountId).toBe(999001);
+    expect(transferred.body.transferToAccountId).toBe(222222);
     expect(transferred.body.lines).toBeUndefined();
+
+    event.data!.transaction_type = "debit";
+    const debitTransferred = mapWiseBalanceUpdateToFiskl(
+      event,
+      config({ conversionCounterpartyAccountId: 999001 }),
+      resolveOccurrenceIds(new Headers(), event),
+    );
+    expect(debitTransferred.kind).toBe("post");
+    if (debitTransferred.kind !== "post") return;
+    expect(debitTransferred.body.accountId).toBe(222222);
+    expect(debitTransferred.body.transferToAccountId).toBe(999001);
   });
 
   it("does not treat Wise channel_name TRANSFER as a Fiskl TRANSFER", () => {

@@ -12,6 +12,8 @@
 
 A perfect\* template for a [Cloudflare Workers](https://workers.cloudflare.com/) project, using [Workers Sites](https://workers.cloudflare.com/sites) ([React](https://reactjs.org/) although can be easily swapped for [Gatsby](https://www.gatsbyjs.org/) or another static builder), [TypeScript](https://www.typescriptlang.org/), [Jest](https://jestjs.io/) and [Prettier](https://prettier.io/).
 
+**Wise → Fiskl production Worker:** see [`wise-fiskl-webhook/`](./wise-fiskl-webhook) (dedicated app; this template identity is unchanged).
+
 **And now, with end-to-end tests thanks to the new [`wrangler dev`](https://github.com/cloudflare/wrangler#-dev) command and [Playwright](https://playwright.dev/)! ✨**
 
 ## Prerequisites

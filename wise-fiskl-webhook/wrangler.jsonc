@@ -1,0 +1,35 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "wise-fiskl-webhook",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-22",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "invocation_logs": true,
+      "head_sampling_rate": 1
+    }
+  },
+  // Create with: npx wrangler kv namespace create IDEMPOTENCY
+  // Then replace this placeholder id. Local `wrangler dev` still works.
+  "kv_namespaces": [
+    {
+      "binding": "IDEMPOTENCY",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "vars": {
+    "FISKL_API_BASE": "https://api.fiskl.com",
+    "FISKL_COMPANY_ID": "3618",
+    // Uncategorised Expenses / Sales (chart hints from live company 3618)
+    "FISKL_DEFAULT_EXPENSE_ACCOUNT_ID": "354816",
+    "FISKL_DEFAULT_INCOME_ACCOUNT_ID": "354765",
+    "WISE_PERSONAL_PROFILE_ID": "8027831",
+    "WISE_BUSINESS_PROFILE_ID": "70855943",
+    "WISE_ENVIRONMENT": "production",
+    "WISE_REQUIRE_SIGNATURE": "true",
+    // JSON map: Wise profileId → Fiskl bank/cash accountId for [PERS] Wise / [BIZ] Wise
+    "WISE_PROFILE_TO_FISKL_ACCOUNT": "{\"8027831\":\"0\",\"70855943\":\"0\"}"
+  }
+}

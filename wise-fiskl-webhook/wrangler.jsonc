@@ -30,6 +30,6 @@
     "WISE_ENVIRONMENT": "production",
     "WISE_REQUIRE_SIGNATURE": "true",
     // JSON map: Wise profileId → Fiskl bank/cash accountId for [PERS] Wise / [BIZ] Wise
-    "WISE_PROFILE_TO_FISKL_ACCOUNT": "{\"8027831\":\"REPLACE_PERS_WISE_ACCOUNT_ID\",\"70855943\":\"REPLACE_BIZ_WISE_ACCOUNT_ID\"}"
+    "WISE_PROFILE_TO_FISKL_ACCOUNT": "{\"8027831\":\"0\",\"70855943\":\"0\"}"
   }
 }

@@ -6,7 +6,6 @@ interface Env {
   IDEMPOTENCY: KVNamespace;
   FISKL_API_KEY: string;
   WISE_API_TOKEN?: string;
-  WEBHOOK_SHARED_SECRET?: string;
   FISKL_API_BASE: string;
   FISKL_COMPANY_ID: string;
   FISKL_DEFAULT_EXPENSE_ACCOUNT_ID: string;

@@ -156,14 +156,4 @@ describe("handleRequest", () => {
     expect(res.status).toBe(502);
   });
 
-  it("rejects missing shared secret", async () => {
-    const res = await handleRequest(
-      new Request("https://worker.test/wise/balances-update", {
-        method: "POST",
-        body: "{}",
-      }),
-      testEnv({ WEBHOOK_SHARED_SECRET: "s3cret" }),
-    );
-    expect(res.status).toBe(401);
-  });
 });

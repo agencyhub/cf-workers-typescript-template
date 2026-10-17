@@ -3,7 +3,6 @@ import { postFisklTransaction } from "./fiskl-client";
 import { alreadyProcessed, markProcessed } from "./idempotency";
 import { logJson } from "./log";
 import { mapWiseBalanceUpdateToFiskl, resolveOccurrenceIds } from "./map-wise-to-fiskl";
-import { authorizeSharedSecret } from "./secrets";
 import type { WiseWebhookEnvelope } from "./types";
 import { verifyWiseSignature } from "./wise-signature";
 
@@ -31,10 +30,6 @@ async function handleBalancesUpdate(
   if (!env.FISKL_API_KEY) {
     logJson("error", { message: "missing_fiskl_api_key" });
     return json(500, { status: "error", error: "misconfigured" });
-  }
-
-  if (!authorizeSharedSecret(request, env.WEBHOOK_SHARED_SECRET)) {
-    return json(401, { status: "error", error: "unauthorized" });
   }
 
   const contentLength = Number(request.headers.get("Content-Length") ?? "0");
@@ -174,14 +169,14 @@ export async function handleRequest(
 
   try {
     if (path === "/healthz" && request.method === "GET") {
-      return handleHealthz();
+      return await handleHealthz();
     }
 
     if (path === "/wise/balances-update") {
       if (request.method !== "POST") {
         return json(405, { status: "error", error: "method_not_allowed" });
       }
-      return handleBalancesUpdate(request, env);
+      return await handleBalancesUpdate(request, env);
     }
 
     return json(404, { status: "error", error: "not_found" });

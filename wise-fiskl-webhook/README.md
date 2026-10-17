@@ -52,7 +52,6 @@ Secrets (`wrangler secret put`, never commit):
 | --- | --- | --- |
 | `FISKL_API_KEY` | yes | `Authorization: Bearer` on Fiskl (`fsk_…`, needs `transactions:write`) |
 | `WISE_API_TOKEN` | subscribe script | profile webhook subscriptions only — **not** used to fetch statements |
-| `WEBHOOK_SHARED_SECRET` | no | extra check on header `X-Webhook-Secret` (Wise URLs cannot include query params) |
 
 Vars (`wrangler.jsonc` or dashboard):
 
@@ -80,7 +79,6 @@ npx wrangler kv namespace create IDEMPOTENCY
 
 # after creating [PERS] Wise and [BIZ] Wise cash accounts in Fiskl:
 npx wrangler secret put FISKL_API_KEY
-# optional: npx wrangler secret put WEBHOOK_SHARED_SECRET
 # optional: npx wrangler secret put WISE_API_TOKEN   # only if you want it on the Worker
 
 # set the real profile → cash map (no secrets, but environment-specific):

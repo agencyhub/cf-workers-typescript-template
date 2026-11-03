@@ -7,6 +7,7 @@ interface Env {
   FISKL_API_KEY: string;
   WISE_API_TOKEN?: string;
   FISKL_API_BASE: string;
+  FISKL_TIMEOUT_MS?: string;
   FISKL_COMPANY_ID: string;
   FISKL_DEFAULT_EXPENSE_ACCOUNT_ID: string;
   FISKL_DEFAULT_INCOME_ACCOUNT_ID: string;

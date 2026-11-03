@@ -12,6 +12,7 @@ export type ProfileLabel = "PERS" | "BIZ" | "WISE";
 
 export interface WorkerConfig {
   fisklApiBase: string;
+  fisklTimeoutMs: number;
   fisklCompanyId: string;
   defaultExpenseCategoryId: number;
   defaultIncomeCategoryId: number;
@@ -37,6 +38,11 @@ function parsePositiveInt(raw: string, label: string): number {
     throw new Error(`invalid ${label}: ${raw}`);
   }
   return n;
+}
+
+function parseTimeoutMs(raw: string | undefined, fallback: number): number {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : fallback;
 }
 
 function parseBool(raw: string | undefined, fallback: boolean): boolean {
@@ -87,6 +93,8 @@ export function loadConfig(env: Env): WorkerConfig {
       /\/$/,
       "",
     ),
+    // Wise's ack SLA is 5s; keep the Fiskl call comfortably under it.
+    fisklTimeoutMs: parseTimeoutMs(env.FISKL_TIMEOUT_MS, 4000),
     fisklCompanyId: env.FISKL_COMPANY_ID?.trim() || "3618",
     defaultExpenseCategoryId: parsePositiveInt(
       requiredString(env, "FISKL_DEFAULT_EXPENSE_ACCOUNT_ID"),

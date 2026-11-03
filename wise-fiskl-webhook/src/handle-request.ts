@@ -1,12 +1,17 @@
 import { loadConfig } from "./config";
 import { postFisklTransaction } from "./fiskl-client";
-import { alreadyProcessed, markProcessed } from "./idempotency";
+import { claimOccurrence, markProcessed, releaseClaim } from "./idempotency";
 import { logJson } from "./log";
 import { mapWiseBalanceUpdateToFiskl, resolveOccurrenceIds } from "./map-wise-to-fiskl";
 import type { WiseWebhookEnvelope } from "./types";
 import { verifyWiseSignature } from "./wise-signature";
 
 const MAX_BODY_BYTES = 256 * 1024;
+
+// Skips caused by deployment config (not by the event itself) must surface to
+// Wise as failures so the delivery is retried once the config is corrected —
+// acking them would silently drop real cash movements.
+const CONFIG_SKIP_REASONS = new Set(["unmapped_profile", "placeholder_account"]);
 
 function json(status: number, body: Record<string, unknown>): Response {
   return new Response(JSON.stringify(body), {
@@ -93,7 +98,12 @@ async function handleBalancesUpdate(
 
   const ids = resolveOccurrenceIds(request.headers, event);
 
-  if (await alreadyProcessed(env.IDEMPOTENCY, ids.deliveryId, ids.occurrenceId)) {
+  const claim = await claimOccurrence(
+    env.IDEMPOTENCY,
+    ids.deliveryId,
+    ids.occurrenceId,
+  );
+  if (claim === "done") {
     logJson("info", {
       message: "duplicate_skipped",
       delivery_id: ids.deliveryId,
@@ -101,9 +111,33 @@ async function handleBalancesUpdate(
     });
     return json(200, { status: "ok", skipped: "duplicate" });
   }
+  if (claim === "processing") {
+    // A concurrent delivery is already working this event — tell Wise to retry
+    // later, when it will see the settled marker instead of double-posting.
+    logJson("info", {
+      message: "concurrent_delivery_in_flight",
+      delivery_id: ids.deliveryId,
+      occurrence_id: ids.occurrenceId,
+    });
+    return json(503, {
+      status: "error",
+      error: "concurrent_delivery_in_flight",
+    });
+  }
 
   const mapped = mapWiseBalanceUpdateToFiskl(event, config, ids);
   if (mapped.kind === "skip") {
+    if (CONFIG_SKIP_REASONS.has(mapped.reason)) {
+      logJson("error", {
+        message: "event_skipped_config",
+        reason: mapped.reason,
+        detail: mapped.detail,
+        delivery_id: ids.deliveryId,
+        occurrence_id: ids.occurrenceId,
+      });
+      await releaseClaim(env.IDEMPOTENCY, ids.deliveryId, ids.occurrenceId);
+      return json(503, { status: "error", error: mapped.reason });
+    }
     logJson("info", {
       message: "event_skipped",
       reason: mapped.reason,
@@ -119,6 +153,7 @@ async function handleBalancesUpdate(
     env,
     config.fisklApiBase,
     mapped.body,
+    config.fisklTimeoutMs,
   );
 
   if (!fiskl.ok) {
@@ -131,6 +166,7 @@ async function handleBalancesUpdate(
       external_id: mapped.body.externalId,
       fiskl_body: fiskl.bodyText,
     });
+    await releaseClaim(env.IDEMPOTENCY, ids.deliveryId, ids.occurrenceId);
     return json(fiskl.retryable ? 503 : 502, {
       status: "error",
       error: "fiskl_post_failed",

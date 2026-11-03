@@ -2,8 +2,9 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { handleRequest } from "../src/handle-request";
 import type { WiseWebhookEnvelope } from "../src/types";
 
-function memoryKv(): KVNamespace {
-  const store = new Map<string, string>();
+function memoryKv(
+  store: Map<string, string> = new Map(),
+): KVNamespace {
   return {
     get: async (key: string) => store.get(key) ?? null,
     put: async (key: string, value: string) => {
@@ -156,4 +157,135 @@ describe("handleRequest", () => {
     expect(res.status).toBe(502);
   });
 
+  it("treats Fiskl 409 as a recorded duplicate and stops Wise retries", async () => {
+    const fiskl = vi.fn(
+      async () => new Response("conflict", { status: 409 }),
+    );
+    vi.stubGlobal("fetch", fiskl);
+    const store = new Map<string, string>();
+
+    const first = await handleRequest(
+      new Request("https://worker.test/wise/balances-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creditPayload()),
+      }),
+      testEnv({ IDEMPOTENCY: memoryKv(store) }),
+    );
+    expect(first.status).toBe(200);
+    expect(await first.json()).toMatchObject({ status: "ok", duplicate: true });
+    expect(fiskl).toHaveBeenCalledTimes(1);
+
+    const second = await handleRequest(
+      new Request("https://worker.test/wise/balances-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creditPayload()),
+      }),
+      testEnv({ IDEMPOTENCY: memoryKv(store) }),
+    );
+    expect(second.status).toBe(200);
+    expect(await second.json()).toMatchObject({ skipped: "duplicate" });
+    expect(fiskl).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 503 for unmapped profiles and reprocesses after config fix", async () => {
+    const fiskl = vi.fn(
+      async () => new Response(JSON.stringify({ id: 1 }), { status: 201 }),
+    );
+    vi.stubGlobal("fetch", fiskl);
+    const store = new Map<string, string>();
+    const request = () =>
+      new Request("https://worker.test/wise/balances-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creditPayload()),
+      });
+
+    const first = await handleRequest(
+      request(),
+      testEnv({
+        IDEMPOTENCY: memoryKv(store),
+        WISE_PROFILE_TO_FISKL_ACCOUNT: "{}",
+      }),
+    );
+    expect(first.status).toBe(503);
+    expect(await first.json()).toMatchObject({ error: "unmapped_profile" });
+    expect(fiskl).not.toHaveBeenCalled();
+
+    const second = await handleRequest(
+      request(),
+      testEnv({ IDEMPOTENCY: memoryKv(store) }),
+    );
+    expect(second.status).toBe(200);
+    expect(fiskl).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns 503 while a concurrent delivery holds the claim", async () => {
+    const fiskl = vi.fn();
+    vi.stubGlobal("fetch", fiskl);
+    const store = new Map<string, string>([
+      ["occ:step:70855943:1234567", "processing"],
+    ]);
+
+    const res = await handleRequest(
+      new Request("https://worker.test/wise/balances-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creditPayload()),
+      }),
+      testEnv({ IDEMPOTENCY: memoryKv(store) }),
+    );
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({
+      error: "concurrent_delivery_in_flight",
+    });
+    expect(fiskl).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when the Fiskl call times out or fails at the network layer", async () => {
+    const fiskl = vi.fn(async () => {
+      throw new DOMException("The operation timed out", "TimeoutError");
+    });
+    vi.stubGlobal("fetch", fiskl);
+    const store = new Map<string, string>();
+    const request = () =>
+      new Request("https://worker.test/wise/balances-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creditPayload()),
+      });
+
+    const first = await handleRequest(
+      request(),
+      testEnv({ IDEMPOTENCY: memoryKv(store) }),
+    );
+    expect(first.status).toBe(503);
+    expect(fiskl).toHaveBeenCalledTimes(1);
+
+    // Claim was released: the retry re-attempts Fiskl instead of skipping.
+    const second = await handleRequest(
+      request(),
+      testEnv({ IDEMPOTENCY: memoryKv(store) }),
+    );
+    expect(second.status).toBe(503);
+    expect(fiskl).toHaveBeenCalledTimes(2);
+  });
+
+  it("passes an abort signal to the Fiskl fetch", async () => {
+    const fiskl = vi.fn(
+      async () => new Response(JSON.stringify({ id: 1 }), { status: 201 }),
+    );
+    vi.stubGlobal("fetch", fiskl);
+    await handleRequest(
+      new Request("https://worker.test/wise/balances-update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(creditPayload()),
+      }),
+      testEnv(),
+    );
+    const init = (fiskl.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
 });

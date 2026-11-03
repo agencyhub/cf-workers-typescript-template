@@ -11,7 +11,7 @@ This folder is a dedicated Worker app. The repository root remains the generic T
 | `GET` | `/healthz` | `{ "ok": true }` |
 | `POST` | `/wise/balances-update` | Wise webhook receiver |
 
-Wise must receive **HTTP 200** within 5 seconds (including the subscription test ping with `X-Test-Notification: true`).
+Wise must receive **HTTP 200** within 5 seconds (including the subscription test ping with `X-Test-Notification: true`). The Fiskl call is bounded by `FISKL_TIMEOUT_MS` (default `4000`) so a slow Fiskl cannot blow the SLA — a timeout returns 503 and Wise retries.
 
 ## Mapping (locked to current Wise docs)
 
@@ -62,11 +62,12 @@ Vars (`wrangler.jsonc` or dashboard):
 | `FISKL_DEFAULT_INCOME_ACCOUNT_ID` | `354765` |
 | `FISKL_COMPANY_ID` | `3618` (documented; API key is company-scoped) |
 | `FISKL_API_BASE` | `https://api.fiskl.com` |
+| `FISKL_TIMEOUT_MS` | `4000` (ms budget for `POST /v1/transactions`) |
 | `WISE_REQUIRE_SIGNATURE` | `true` in production (RSA-SHA256 `X-Signature-SHA256`) |
 | `WISE_ENVIRONMENT` | `production` or `sandbox` (selects Wise public key first) |
 | `FISKL_CONVERSION_COUNTERPARTY_ACCOUNT_ID` | optional cash account for conversion `TRANSFER`s |
 
-KV binding: `IDEMPOTENCY` (delivery id + occurrence id, 90-day TTL). Fiskl `externalId` is the second idempotency layer.
+KV binding: `IDEMPOTENCY` (delivery id + occurrence id). Each delivery is **claimed** before posting (`processing`, 15-min TTL) and marked `done` (90-day TTL) after it settles; a delivery that finds an in-flight claim gets 503 so Wise retries once the first one finishes. Fiskl `externalId` + `Idempotency-Key` is the authoritative second layer — Fiskl `200`/`409` is treated as an already-recorded duplicate and acked `200`. Failures release the claim so retries reprocess; config skips (`unmapped_profile`, `placeholder_account`) return 503 without marking done, so fixing the account map lets Wise redeliver the event instead of losing it.
 
 ## Deploy
 

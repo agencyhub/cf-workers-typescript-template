@@ -24,6 +24,7 @@ function loadFixture(name: string): WiseWebhookEnvelope {
 function config(overrides: Partial<WorkerConfig> = {}): WorkerConfig {
   return {
     fisklApiBase: "https://api.fiskl.com",
+    fisklTimeoutMs: 4000,
     fisklCompanyId: "3618",
     defaultExpenseCategoryId: 354816,
     defaultIncomeCategoryId: 354765,

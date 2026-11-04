@@ -1,0 +1,4 @@
+# REVIEW.md must be enabled in the Qodo portal:
+# Configurations → Context → REVIEW.md instructions.
+# This is intentionally not configured here because Qodo's documented
+# activation mechanism is the portal toggle.

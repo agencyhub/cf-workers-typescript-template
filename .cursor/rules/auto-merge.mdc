@@ -1,0 +1,20 @@
+# Auto-merge policy
+
+Merging a PR to `master` does NOT require asking the user when ALL of these hold:
+
+- Local gates green on the head SHA — this repo has no working CI (org
+  Actions billing is locked): the agent ran `npm test` + `npm run typecheck`
+  inside `wise-fiskl-webhook/` on a checkout of the head. The kept
+  `wise-fiskl-webhook.yml` workflow is advisory only; its pending/failed
+  state from the billing lock is not signal.
+- The pre-merge review gate in `AGENTS.md` is satisfied: all review threads
+  resolved, bot-authored commits reviewed, gates re-run on the head SHA if
+  it moved.
+- No merge conflicts; head mergeable.
+
+When all hold: merge to `master`, then `git pull` the updated base into
+affected local checkouts. Report the merge in the summary.
+
+Still ask first when: unresolved review findings, conflicts needing
+non-trivial resolution, or the diff touches secrets/billing/destructive ops.
+When unsure — ask.

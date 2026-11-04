@@ -92,6 +92,19 @@ describe("handleRequest", () => {
     expect(fiskl).not.toHaveBeenCalled();
   });
 
+  it("acks test notifications even without FISKL_API_KEY set", async () => {
+    const res = await handleRequest(
+      new Request("https://worker.test/wise/balances-update", {
+        method: "POST",
+        headers: { "X-Test-Notification": "true", "Content-Type": "application/json" },
+        body: JSON.stringify(creditPayload()),
+      }),
+      testEnv({ FISKL_API_KEY: "" }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ skipped: "test_notification" });
+  });
+
   it("POSTs Fiskl INCOME and is idempotent on replay", async () => {
     const fiskl = vi.fn(async () => new Response(JSON.stringify({ id: 1 }), { status: 201 }));
     vi.stubGlobal("fetch", fiskl);

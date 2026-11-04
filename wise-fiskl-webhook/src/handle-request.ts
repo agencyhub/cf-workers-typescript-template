@@ -32,11 +32,6 @@ async function handleBalancesUpdate(
   request: Request,
   env: Env,
 ): Promise<Response> {
-  if (!env.FISKL_API_KEY) {
-    logJson("error", { message: "missing_fiskl_api_key" });
-    return json(500, { status: "error", error: "misconfigured" });
-  }
-
   const contentLength = Number(request.headers.get("Content-Length") ?? "0");
   if (contentLength > MAX_BODY_BYTES) {
     return json(413, { status: "error", error: "payload_too_large" });
@@ -94,6 +89,14 @@ async function handleBalancesUpdate(
       delivery_id: request.headers.get("X-Delivery-Id") ?? null,
     });
     return json(200, { status: "ok", skipped: "test_notification" });
+  }
+
+  // Checked after the test-ping path so Wise subscription creation (whose
+  // signed test notification must get a 200) works before the Fiskl side
+  // is fully configured.
+  if (!env.FISKL_API_KEY) {
+    logJson("error", { message: "missing_fiskl_api_key" });
+    return json(500, { status: "error", error: "misconfigured" });
   }
 
   const ids = resolveOccurrenceIds(request.headers, event);
